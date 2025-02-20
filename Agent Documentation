@@ -1,0 +1,29 @@
+Project Documentation
+
+Overview
+This project implements an e-commerce agent using the ReAct pattern (Reasoning, Acting, Response) with LLM for natural language query processing.
+
+
+
+Architecture
+- agents.py: Main agent implementation using LLM and tools.py as a data source.
+- tools.py: Mock API/Function that return mock data for testing
+
+Flow
+1. User submits natural language query
+2. LLM processes query to select tool and extract parameters
+3. Selected tool is executed with parameters
+4. Results are formatted and returned
+
+Sample Logs
+User: "Find red skirt under $40"
+
+1. ReAct:
+   - Reason: Identify product search with filters
+   - Act: Use search_products tool
+   - Observe: Found matching product
+
+2. Chain of Tools:
+   - Tool Selected: search_products
+   - Parameters Mapped: {color, price}
+   - Execute: Search API call
