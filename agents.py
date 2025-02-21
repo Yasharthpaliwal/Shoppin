@@ -4,8 +4,8 @@ E-commerce Agent System
 This system implements a ReAct pattern to process natural language queries 
 for e-commerce operations using LLM for tool selection and parameter extraction.
 
-Author: [Your Name]
-Date: [Current Date]
+Author: [Yasharth Singh Paliwal]
+Date: [20]
 """
 
 from typing import Dict, Any
@@ -15,6 +15,7 @@ import os
 import tools
 from openai import AzureOpenAI
 import streamlit as st
+from dotenv import load_dotenv
 
 
 class AgentProcessor:
@@ -33,9 +34,9 @@ class AgentProcessor:
         
         # Azure OpenAI Configuration
         self.client = AzureOpenAI(
-            api_key=st.secrets["azure"]["API_KEY"],
-            api_version="2024-08-01-preview",
-            azure_endpoint=st.secrets["azure"]["ENDPOINT"]
+            api_key=api_key=os.getenv("AZURE_API_KEY"),
+            azure_endpoint=os.getenv("AZURE_ENDPOINT"),
+            api_version=os.getenv("AZURE_API_VERSION")
         )
         
         self.deployment_name = "gpt-35-turbo"
