@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from agents import AgentProcessor
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Dict, Any
 
-app = FastAPI()
+app = FastAPI(title="E-commerce Agent API")
 agent = AgentProcessor()
 
 # Add CORS middleware
@@ -16,15 +17,19 @@ app.add_middleware(
 )
 
 class Query(BaseModel):
-    query: str
+    text: str
 
 @app.get("/")
-def read_root():
+async def root():
     return {"message": "E-commerce Agent API is running"}
 
-@app.post("/query")
-def process_query(query: Query):
-    return agent.process_query(query.query)
+@app.post("/process_query")
+async def process_query(query: Query) -> Dict[str, Any]:
+    try:
+        response = await agent.process_query(query.text)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # For testing the API directly
 @app.get("/test/{test_query}")
