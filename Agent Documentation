@@ -1,7 +1,7 @@
 Project Documentation
 
 Overview
-This project implements an e-commerce agent using the ReAct pattern (Reasoning, Acting, Response) with LLM for natural language query processing.
+This project implements an e-commerce agent using the ReAct and chain of tools.
 
 
 
@@ -9,21 +9,130 @@ Architecture
 - agents.py: Main agent implementation using LLM and tools.py as a data source.
 - tools.py: Mock API/Function that return mock data for testing
 
-Flow
-1. User submits natural language query
-2. LLM processes query to select tool and extract parameters
-3. Selected tool is executed with parameters
-4. Results are formatted and returned
 
-Sample Logs
-User: "Find red skirt under $40"
+Query: "Find a floral skirt under $40 in size S"
 
-1. ReAct:
-   - Reason: Identify product search with filters
-   - Act: Use search_products tool
-   - Observe: Found matching product
+1. Intent Detection:
+   - Primary: Product Search
+   - Secondary: None
 
-2. Chain of Tools:
-   - Tool Selected: search_products
-   - Parameters Mapped: {color, price}
-   - Execute: Search API call
+2. Parameter Extraction:
+   - Product: skirt
+   - Pattern: floral
+   - Price: <= 40
+   - Size: S
+
+3. Tool Selection:
+   - search_products (matches product search intent)
+
+4. Parameter Mapping:
+   - color: "floral"
+   - price: 40
+   - size: "S"
+
+
+
+
+
+1. Code Walkthrough & Design Choices
+
+A. Tools Layer (tools.py)
+python
+class MockEcommerceAPI:
+    def __init__(self):
+        self.products = [...]   Mock database
+
+- Design Choice: Used a class-based approach for encapsulation
+- Methodology: Created mock data that covers all test scenarios
+- Challenge: Balancing between realistic data and simplicity
+
+Example Log for Product Search:
+json
+{
+  "input": "Find floral skirt under $40 in size S",
+  "tool_execution": "search_products",
+  "parameters": {
+    "color": null,
+    "price": 40,
+    "size": "S"
+  },
+  "result": {
+    "name": "Floral Skirt",
+    "price": 35,
+    "in_stock": true
+  }
+}
+
+
+2. Query Processing Flow
+
+1. Query Intake
+
+Input: "Find a floral skirt under $40 in size S. Is it in stock, and can I apply a discount code 'SAVE10'?"
+
+- Design Choice: Used predefined queries for demo
+- Challenge: Real-world queries would need NLP parsing
+
+2. Tool Selection
+
+Step 1: search_products
+Step 2: check_discount
+
+- Methodology: Pre-mapped query patterns to tool sequences
+- Performance: Instant in demo, would need optimization with LLM
+
+3. Result Aggregation
+
+Search Result → Price Check → Final Response
+
+
+
+
+
+3. Challenges & Solutions
+
+1. Async Operations
+- Challenge: Managing async tool calls
+- Solution: Used Python's asyncio
+- Log Example:
+
+Processing step 1/2: search_products
+Processing step 2/2: check_discount
+
+
+2. State Management
+- Challenge: Maintaining query context
+- Solution: Step-based result tracking
+- Performance Impact: Minimal in demo
+
+3. Response Formation
+- Challenge: Converting technical results to natural language
+- Solution: Template-based response generation
+
+
+Technical: {"price": 35, "discount": 0.1}
+Natural: "The skirt costs $35, and with SAVE10 you'll get 10% off."
+
+
+4. Improvements Needed
+
+1. Natural Language Processing
+- Current: Fixed queries
+- Needed: LLM for query understanding
+- Impact: More flexible user interactions
+
+2. Tool Selection
+- Current: Predefined mappings
+- Needed: Dynamic tool selection
+- Benefit: Handle complex queries
+
+3. Error Handling
+- Current: Basic error messages
+- Needed: Robust error recovery
+- Example: Handle missing parameters
+
+
+
+
+
+
