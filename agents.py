@@ -20,6 +20,10 @@ from openai import AzureOpenAI
 
 
 
+# Disable proxy settings (for Railway)
+os.environ["HTTP_PROXY"] = ""
+os.environ["HTTPS_PROXY"] = ""
+
 class AgentProcessor:
     """
     Main agent class that processes user queries using LLM and executes appropriate tools.
