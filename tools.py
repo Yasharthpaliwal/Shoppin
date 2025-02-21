@@ -21,15 +21,17 @@ class MockEcommerceAPI:
     def __init__(self):
         # Mock product database
         self.products = [
-            {"name": "Red Skirt", "color": "red", "price": 35, "size": "S"},
-            {"name": "Blue Jacket", "color": "blue", "price": 80, "size": "M"},
-            {"name": "White Shoes", "color": "white", "price": 65, "size": "8"}
+            {"name": "Floral Skirt", "color": "multicolor", "price": 35, "size": "S", "in_stock": True},
+            {"name": "White Sneakers", "color": "white", "price": 65, "size": "8", "in_stock": True},
+            {"name": "Denim Jacket", "color": "blue", "price": 75, "size": "M", "in_stock": True},
+            {"name": "Cocktail Dress", "color": "black", "price": 90, "size": "M", "in_stock": False}
         ]
         
         # Mock store prices for comparison
         self.store_prices = {
-            "Red Skirt": {"StoreA": 35, "StoreB": 38},
-            "Blue Jacket": {"StoreA": 80, "StoreB": 75}
+            "Floral Skirt": {"StoreA": 35, "StoreB": 38},
+            "White Sneakers": {"StoreA": 65, "StoreB": 70},
+            "Denim Jacket": {"StoreA": 80, "StoreB": 75, "StoreC": 72}
         }
 
     async def search_products(self, color=None, price=None, size=None):
@@ -38,19 +40,28 @@ class MockEcommerceAPI:
         
         Args:
             color (str, optional): Product color
-            price (float, optional): Maximum price
+            price (float/str, optional): Maximum price
             size (str, optional): Product size
             
         Returns:
             list: Matching products
         """
-        results = self.products
+        results = self.products.copy()
+        
         if color:
-            results = [p for p in results if p["color"] == color]
-        if price:
-            results = [p for p in results if p["price"] <= price]
+            results = [p for p in results if p["color"].lower() == color.lower()]
+        
+        if price is not None:
+            try:
+                # Convert price to float if it's a string
+                max_price = float(str(price).replace('$', '').replace(',', ''))
+                results = [p for p in results if p["price"] <= max_price]
+            except (ValueError, TypeError):
+                print(f"Invalid price value: {price}")
+        
         if size:
-            results = [p for p in results if p["size"] == size]
+            results = [p for p in results if p["size"].lower() == str(size).lower()]
+        
         return results
 
     async def compare_prices(self, product_name):
