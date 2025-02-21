@@ -20,9 +20,7 @@ from openai import AzureOpenAI
 
 
 
-# Disable proxy settings (for Railway)
-os.environ["HTTP_PROXY"] = ""
-os.environ["HTTPS_PROXY"] = ""
+openai.proxy = None 
 
 class AgentProcessor:
     """
