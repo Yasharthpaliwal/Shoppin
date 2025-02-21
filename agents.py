@@ -1,215 +1,146 @@
+"""
+E-commerce Agent System
+----------------------
+This system implements a ReAct pattern to process natural language queries 
+for e-commerce operations using LLM for tool selection and parameter extraction.
+
+Author: [Your Name]
+Date: [Current Date]
+"""
+
 from typing import Dict, Any
+import openai
+import json
+import os
 import tools
+from openai import AzureOpenAI
+
 
 class AgentProcessor:
-    def __init__(self):
-        self.api = tools.MockEcommerceAPI()
+    """
+    Main agent class that processes user queries using LLM and executes appropriate tools.
+    
+    Implements ReAct pattern:
+    1. Reasoning: LLM analyzes query to determine required tool
+    2. Acting: Executes selected tool with extracted parameters
+    3. Response: Returns structured results
+    """
 
-    def process_query(self, user_query: str) -> Dict[str, Any]:
+    def __init__(self):
+        # Initialize API configurations
+        self.api = tools.MockEcommerceAPI()
+        
+        # Azure OpenAI Configuration
+        self.client = AzureOpenAI(
+            api_key="G4jKgrdqjIK4GaFAbjQZxTOF0Afot5SYsR3pVicNY73m0mRd9Ag7JQQJ99ALAC77bzfXJ3w3AAABACOG1tyu",
+            api_version="2024-08-01-preview",
+            azure_endpoint="https://guidant.openai.azure.com"
+        )
+        
+        self.deployment_name = "gpt-35-turbo"
+        
+        # Available tools configuration
+        self.available_tools = {
+            "search_products": ["color", "price", "size"],
+            "compare_prices": ["product_name"],
+            "get_shipping": ["location"],
+            "check_discount": ["promo_code", "price"],
+            "get_return_policy": ["store_name"]
+        }
+
+    async def process_query(self, query: str) -> Dict[str, Any]:
         """
         Process user query and return structured response.
-        In real implementation, this would use an LLM to extract parameters.
+        
+        Args:
+            query (str): User's natural language query
+            
+        Returns:
+            Dict[str, Any]: Structured response containing:
+                - status: Success/error
+                - query: Original query
+                - tool: Tool used
+                - parameters: Extracted parameters
+                - result: API response
+                
+        Example:
+            Input: "Find red shoes under $50"
+            Output: {
+                "status": "success",
+                "query": "Find red shoes under $50",
+                "tool": "search_products",
+                "parameters": {"color": "red", "price": 50},
+                "result": [...]
+            }
         """
-        # Input validation
-        if not isinstance(user_query, str):
-            return {
-                "status": "error",
-                "message": "Query must be a string",
-                "data": None
-            }
-        
-        if not user_query.strip():
-            return {
-                "status": "error",
-                "message": "Query cannot be empty",
-                "data": None
-            }
+        if not query.strip():
+            return {"status": "error", "message": "Empty query"}
 
-        # Mock LLM parameter extraction
-        extracted_params = self._mock_extract_parameters(user_query)
-        
-        # Handle unknown intent
-        if extracted_params["intent"] == "unknown":
-            return {
-                "status": "error",
-                "message": "I couldn't understand your request. Please try rephrasing it.",
-                "data": None
-            }
-
-        # Route to appropriate handler based on intent
-        handlers = {
-            "product_search": self._handle_search,
-            "price_comparison": self._handle_price_comparison,
-            "shipping": self._handle_shipping_estimate,
-            "discount": self._handle_discount_check,
-            "return_policy": self._handle_return_policy
-        }
-        
-        handler = handlers.get(extracted_params["intent"])
-        if not handler:
-            return {
-                "status": "error",
-                "message": "This type of request is not supported",
-                "data": None
-            }
-        
         try:
-            return handler(extracted_params["parameters"])
+            # Get tool selection and parameters from LLM
+            tool_response = await self._get_tool_and_params(query)
+            if isinstance(tool_response, str):
+                tool_response = json.loads(tool_response)
+                
+            tool_name = tool_response.get("tool")
+            params = tool_response.get("parameters", {})
+
+            # Validate tool existence
+            if tool_name not in self.available_tools:
+                return {"error": "Tool not found"}
+
+            # Execute selected tool
+            api_method = getattr(self.api, tool_name)
+            api_result = await api_method(**params)
+
+            # Return structured response
+            return {
+                "status": "success",
+                "query": query,
+                "tool": tool_name,
+                "parameters": params,
+                "result": api_result
+            }
+
         except Exception as e:
-            return {
-                "status": "error",
-                "message": f"An error occurred while processing your request: {str(e)}",
-                "data": None
-            }
+            return {"status": "error", "message": str(e)}
 
-    def _mock_extract_parameters(self, query: str) -> Dict[str, Any]:
-        """
-        Mock LLM parameter extraction. In real implementation, 
-        this would be replaced with actual LLM call.
-        """
-        query = query.lower()
-        
-        # Product Search Intent
-        if any(word in query for word in ["find", "search"]):
-            return {
-                "intent": "product_search",
-                "parameters": {
-                    "query": query,
-                    "color": "red" if "red" in query else (
-                        "blue" if "blue" in query else (
-                        "white" if "white" in query else None
-                    )),
-                    "price_range": 40 if "$40" in query else None,
-                    "size": "S" if "size s" in query else None
-                }
-            }
-        
-        # Price Comparison Intent
-        if any(word in query for word in ["compare", "price"]):
-            product_name = None
-            if "jacket" in query:
-                product_name = "Denim Jacket"
-            elif "skirt" in query:
-                product_name = "Floral Skirt"
+    async def _get_tool_and_params(self, query: str) -> Dict[str, Any]:
+        """Use LLM to identify tool and extract parameters"""
+        try:
+            prompt = f"""
+            Given these available tools and their parameters:
+            {self.available_tools}
+
+            For the query: "{query}"
             
-            return {
-                "intent": "price_comparison",
-                "parameters": {
-                    "product_name": product_name
-                }
-            }
-        
-        # Shipping Intent
-        if any(word in query for word in ["shipping", "arrive", "delivery"]):
-            location = "New York" if "new york" in query else (
-                "California" if "california" in query else "unknown"
+            Return
+            
+                "tool": "tool_name",
+                "parameters": 
+                "param1": "value1",
+                "param2: "Value"
+
+            "reasoning": "Explain why this tool was chosen."
+            Note: For price parameters, always return numeric values without currency symbols.
+            """
+
+            response = self.client.chat.completions.create(
+                model=self.deployment_name,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": query}
+                ],
+                temperature=0
             )
-            return {
-                "intent": "shipping",
-                "parameters": {
-                    "location": location,
-                    "delivery_date": "2024-03-01"  # Mock date
-                }
-            }
-        
-        # Discount Intent
-        if any(word in query for word in ["promo", "discount", "code"]):
-            # Extract promo code - assume it's in caps after "code" or "promo"
-            words = query.upper().split()
-            promo_code = None
-            for i, word in enumerate(words):
-                if word in ["CODE", "PROMO"]:
-                    if i + 1 < len(words):
-                        promo_code = words[i + 1]
-                        break
-                    
-            return {
-                "intent": "discount",
-                "parameters": {
-                    "promo_code": promo_code,
-                    "base_price": 100  # Mock base price
-                }
-            }
-        
-        # Return Policy Intent
-        if any(word in query for word in ["return", "returns"]):
-            site = None
-            if "sitea" in query.lower():
-                site = "SiteA"
-            elif "siteb" in query.lower():
-                site = "SiteB"
-            elif "sitec" in query.lower():
-                site = "SiteC"
             
-            return {
-                "intent": "return_policy",
-                "parameters": {
-                    "site": site or "unknown"
-                }
-            }
-        
-        # Unknown Intent
-        return {
-            "intent": "unknown",
-            "parameters": {}
-        }
+            # Parse the response and ensure price is float
+            content = json.loads(response.choices[0].message.content)
+            if 'parameters' in content and 'price' in content['parameters']:
+                content['parameters']['price'] = float(str(content['parameters']['price']).replace('$', ''))
+            
+            return content
+            
+        except Exception as e:
+            raise Exception(f"Azure OpenAI API error: {str(e)}")
 
-    def _handle_search(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle product search with structured response"""
-        api_response = self.api.search_products(params)
-        return {
-            "status": "success",
-            "intent": "product_search",
-            "data": api_response["data"],
-            "metadata": api_response["metadata"]
-        }
-
-    def _handle_price_comparison(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle price comparison requests"""
-        product_name = params.get("product_name", "unknown item")
-        response = self.api.compare_prices(product_name)
-        return {
-            "status": "success",
-            "intent": "price_comparison",
-            "data": response["data"]
-        }
-
-    def _handle_shipping_estimate(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle shipping estimate requests"""
-        response = self.api.get_shipping_estimate(
-            params.get("location", "unknown"),
-            params.get("delivery_date", "unknown")
-        )
-        return {
-            "status": "success",
-            "intent": "shipping",
-            "data": response["data"]
-        }
-
-    def _handle_discount_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle discount code application"""
-        response = self.api.check_discount(
-            params.get("base_price", 0),
-            params.get("promo_code", None)
-        )
-        return {
-            "status": "success",
-            "intent": "discount",
-            "data": response["data"]
-        }
-
-    def _handle_return_policy(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle return policy queries"""
-        response = self.api.get_return_policy(params.get("site", "unknown"))
-        return {
-            "status": "success",
-            "intent": "return_policy",
-            "data": response["data"]
-        }
-
-# Example usage
-if __name__ == "__main__":
-    agent = AgentProcessor()
-    test_query = "Find me a red skirt under $40 in size S"
-    response = agent.process_query(test_query)
-    print(response)
