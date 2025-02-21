@@ -7,6 +7,8 @@ for e-commerce operations using LLM for tool selection and parameter extraction.
 Author: [Yasharth Singh Paliwal]
 Date: [20]
 """
+# Load environment variables
+load_dotenv()
 
 from typing import Dict, Any
 import openai
