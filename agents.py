@@ -8,7 +8,7 @@ Author: [Yasharth Singh Paliwal]
 Date: [20]
 """
 # Load environment variables
-load_dotenv()
+
 
 from typing import Dict, Any
 import openai
@@ -16,8 +16,8 @@ import json
 import os
 import tools
 from openai import AzureOpenAI
-import streamlit as st
-from dotenv import load_dotenv
+
+
 
 
 class AgentProcessor:
@@ -36,9 +36,9 @@ class AgentProcessor:
         
         # Azure OpenAI Configuration
         self.client = AzureOpenAI(
-            api_key=os.getenv("AZURE_API_KEY"),
-            azure_endpoint=os.getenv("AZURE_ENDPOINT"),
-            api_version=os.getenv("AZURE_API_VERSION")
+            api_key="G4jKgrdqjIK4GaFAbjQZxTOF0Afot5SYsR3pVicNY73m0mRd9Ag7JQQJ99ALAC77bzfXJ3w3AAABACOG1tyu",
+            azure_endpoint="https://guidant.openai.azure.com",
+            api_version="2024-08-01-preview"
         )
         
         self.deployment_name = "gpt-35-turbo"
